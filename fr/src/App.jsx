@@ -6,9 +6,13 @@ function App() {
   const [result, setResult] = useState(null)
 
   const analyze = async () => {
-    const res = await fetch(`http://127.0.0.1:8000/analyze/${genomicId}`)
-    const data = await res.json()
-    setResult(data)
+    if (!genomicId.trim()) {
+      alert("Please enter a genomic ID.");
+      return;
+    }
+    const res = await fetch(`http://127.0.0.1:8000/analyze/${genomicId}`);
+    const data = await res.json();
+    setResult(data);
   }
 
   return (
@@ -29,6 +33,12 @@ function App() {
         <div className="mt-4 p-4 border rounded">
           <h2 className="text-xl">Result</h2>
           <pre>{JSON.stringify(result, null, 2)}</pre>
+          {result.report && (
+            <div className="mt-4 p-4 bg-gray-100 rounded">
+              <h3 className="text-lg font-semibold">Gemini Report</h3>
+              <p>{result.report}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
