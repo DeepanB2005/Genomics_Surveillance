@@ -31,7 +31,7 @@ def generate_gemini_report(result: dict):
     prompt = (
         "Generate a simple, clear report for the following genomic analysis result:\n"
         f"{result}\n"
-        "Summarize the organism, pathogen status, and danger level in plain English."
+        "Summarize the organism, pathogen status, and danger level in pasin English."
     )
     headers = {
         "Content-Type": "application/json"
