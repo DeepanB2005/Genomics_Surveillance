@@ -49,17 +49,17 @@ function App() {
         return;
       }
       setLoading(true);
-      const results = [];
+      setBatchResults([]); // Clear previous batch results
       for (const id of ids) {
         try {
           const res = await fetch(`http://127.0.0.1:8000/analyze/${id}`);
           const data = await res.json();
-          results.push({ ...data, genomic_id: id });
+          // Append each result as soon as it arrives
+          setBatchResults(prev => [...prev, { ...data, genomic_id: id }]);
         } catch (error) {
-          results.push({ genomic_id: id, error: "Failed to analyze." });
+          setBatchResults(prev => [...prev, { genomic_id: id, error: "Failed to analyze." }]);
         }
       }
-      setBatchResults(results);
     } catch (err) {
       alert("Invalid JSON file.");
     } finally {
