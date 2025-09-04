@@ -1,63 +1,36 @@
-// frontend/src/App.js
-import React, { useState, useEffect } from "react";
-import { Line } from "react-chartjs-2";
+import { useState } from "react";
 
 function App() {
-  const [variant, setVariant] = useState("BA.5");
-  const [data, setData] = useState(null);
+  const [genomeId, setGenomeId] = useState("");
+  const [result, setResult] = useState(null);
 
-  useEffect(() => {
-    if (variant) {
-      fetch(`http://localhost:8000/variant-trends/${variant}`)
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Error: ${res.status} ${res.statusText}`);
-          }
-          return res.json();
-        })
-        .then((json) => {
-          if (json && json.data) {
-            setData(json.data);
-          } else if (json.error) {
-            alert(json.error); // Display backend error
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-          alert("Failed to fetch data. Please try again.");
-        });
-    }
-  }, [variant]);
-
-  const chartData = data
-    ? {
-        labels: data.map((d) => d.date),
-        datasets: [
-          {
-            label: `Prevalence of ${variant}`,
-            data: data.map((d) => d.prevalence),
-            borderColor: "blue",
-            fill: false,
-          },
-        ],
-      }
-    : null;
+  const checkGenome = async () => {
+    const res = await fetch(`http://127.0.0.1:8000/check_genome?genome_id=${genomeId}`);
+    const data = await res.json();
+    setResult(data);
+  };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Genomics Surveillance Dashboard</h2>
+    <div style={{ padding: "20px", fontFamily: "Arial" }}>
+      <h1>Pathogen Identifier</h1>
       <input
         type="text"
-        value={variant}
-        onChange={(e) => setVariant(e.target.value)}
-        placeholder="Enter variant (e.g., BA.5)"
+        placeholder="Enter genomic ID (e.g., NC_045512)"
+        value={genomeId}
+        onChange={(e) => setGenomeId(e.target.value)}
       />
-      <button onClick={() => setVariant(variant)}>Fetch</button>
+      <button onClick={checkGenome} style={{ marginLeft: "10px" }}>
+        Check
+      </button>
 
-      {chartData ? (
-        <Line data={chartData} />
-      ) : (
-        <p>Enter a variant to see trends</p>
+      {result && (
+        <div style={{ marginTop: "20px" }}>
+          <h3>Results:</h3>
+          <p><strong>Genome ID:</strong> {result.genome_id}</p>
+          <p><strong>Organism:</strong> {result.organism}</p>
+          <p><strong>Is Pathogen?</strong> {String(result.is_pathogen)}</p>
+          <p><strong>Danger Level:</strong> {result.danger_level}</p>
+        </div>
       )}
     </div>
   );

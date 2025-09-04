@@ -1,43 +1,46 @@
-# backend/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 
 app = FastAPI()
 
-# Allow frontend requests (CORS setup)
+# Allow frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Allow only your frontend's origin
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-OUTBREAK_API = "https://api.outbreak.info/genomics/prevalence-by-location"
+# Example pathogen database (can be expanded)
+pathogen_db = {
+    "NC_045512": {"name": "SARS-CoV-2", "is_pathogen": True, "danger": "High"},
+    "NC_000913": {"name": "Escherichia coli K-12", "is_pathogen": False, "danger": "Low"},
+    "NC_006273": {"name": "MERS-CoV", "is_pathogen": True, "danger": "High"},
+}
 
-@app.get("/variant-trends/{variant}")
-def get_variant_trends(variant: str):
-    """
-    Fetch prevalence trends for a SARS-CoV-2 variant
-    Example: B.1.1.7 (Alpha), BA.5, XBB.1.5
-    """
-    params = {
-        "pangolin_lineage": variant,
-        "location": "USA",   # you can make this dynamic later
+@app.get("/check_genome")
+def check_genome(genome_id: str = Query(..., description="Genomic accession ID")):
+    # Step 1: Query NCBI for basic info (simplified example)
+    ncbi_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=nucleotide&id={genome_id}&retmode=json"
+    response = requests.get(ncbi_url)
+    if response.status_code == 200:
+        data = response.json()
+        title = data.get("result", {}).get(genome_id, {}).get("title", "Unknown organism")
+    else:
+        title = "Unknown organism"
+
+    # Step 2: Match with local pathogen database
+    result = pathogen_db.get(genome_id, {
+        "name": title,
+        "is_pathogen": "Unknown",
+        "danger": "Unknown"
+    })
+
+    return {
+        "genome_id": genome_id,
+        "organism": result["name"],
+        "is_pathogen": result["is_pathogen"],
+        "danger_level": result["danger"]
     }
-    try:
-        response = requests.get(OUTBREAK_API, params=params)
-        if response.status_code == 200:
-            try:
-                data = response.json()
-                if "data" in data:
-                    return {"data": data["data"]}
-                else:
-                    return {"error": "No data found for the specified variant"}
-            except requests.exceptions.JSONDecodeError:
-                return {"error": "Invalid JSON response from the API"}
-        else:
-            return {"error": f"API returned status code {response.status_code}", "details": response.text}
-    except requests.RequestException as e:
-        return {"error": "Failed to fetch data from the API", "details": str(e)}
