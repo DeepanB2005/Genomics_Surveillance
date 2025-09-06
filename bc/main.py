@@ -9,29 +9,27 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 NCBI_EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
-# Gemini setup
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or "AIzaSyDqr6OpLmEaKNZBINb_k8fpDWSs54QVVAI"  # fallback to hardcoded key if env not set
-API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+API_KEY = os.getenv("GENOMIC_API_KEY") or "AIzaSyDqr6OpLmEaKNZBINb_k8fpDWSs54QVVAI"  # fallback to hardcoded key if env not set
+API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
 
-def query_gemini(genomic_id: str):
+def query_external_model(genomic_id: str):
     prompt = f"Provide organism and pathogen information for genomic accession: {genomic_id}."
     try:
         response = requests.post(API_URL, headers={"Content-Type": "application/json"}, json={"contents": [{"parts": [{"text": prompt}]}]})
         if response.status_code == 200:
-            gemini_data = response.json()
-            # Extract the generated text from the Gemini API response
-            text = gemini_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            return {"genomic_id": genomic_id, "gemini_response": text or "No response text."}
+            data = response.json()
+            text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            return {"genomic_id": genomic_id, "response": text or "No response text."}
         else:
-            return {"error": f"Gemini API error: {response.status_code} {response.text}"}
+            return {"error": f"API error: {response.status_code} {response.text}"}
     except Exception as e:
-        return {"error": f"Gemini request failed: {str(e)}"}
+        return {"error": f"Request failed: {str(e)}"}
 
-def generate_gemini_report(result: dict):
+def generate_report(result: dict):
     prompt = (
         "Generate a simple, clear report for the following genomic analysis result:\n"
         f"{result}\n"
-        "Summarize the organism, pathogen status, and danger level in pasin English."
+        "Summarize the organism, pathogen status, and danger level in plain English."
     )
     headers = {
         "Content-Type": "application/json"
@@ -44,14 +42,13 @@ def generate_gemini_report(result: dict):
     try:
         response = requests.post(API_URL, headers=headers, json=data)
         if response.status_code == 200:
-            gemini_data = response.json()
-            # Extract the generated text from the Gemini API response
-            text = gemini_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            data = response.json()
+            text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
             return text or "No report generated."
         else:
-            return f"Gemini API error: {response.status_code} {response.text}"
+            return f"API error: {response.status_code} {response.text}"
     except Exception as e:
-        return f"Gemini report generation failed: {str(e)}"
+        return f"Report generation failed: {str(e)}"
 
 @app.get("/analyze/{genomic_id}")
 async def analyze(genomic_id: str):
@@ -64,13 +61,13 @@ async def analyze(genomic_id: str):
     try:
         response = requests.get(NCBI_EFETCH_URL, params=params)
     except Exception as e:
-        result = query_gemini(genomic_id)
-        report = generate_gemini_report(result)
+        result = query_external_model(genomic_id)
+        report = generate_report(result)
         return {**result, "report": report}
 
     if response.status_code != 200 or not response.text.strip():
-        result = query_gemini(genomic_id)
-        report = generate_gemini_report(result)
+        result = query_external_model(genomic_id)
+        report = generate_report(result)
         return {**result, "report": report}
 
     try:
@@ -90,5 +87,5 @@ async def analyze(genomic_id: str):
         "is_pathogen": is_pathogen,
         "danger_level": danger
     }
-    report = generate_gemini_report(result)
+    report = generate_report(result)
     return {**result, "report": report}

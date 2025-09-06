@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Activity, AlertTriangle, TrendingUp, Database, Clock, Shield, Target } from 'lucide-react';
+import { Search, Activity, AlertTriangle, TrendingUp, Database, Clock, Shield, Target, Download } from 'lucide-react';
 import './App.css';
 
 function App() {
@@ -87,6 +87,20 @@ function App() {
     return isPathogen ? 
       <AlertTriangle className="pathogen-icon pathogen-danger" /> : 
       <Shield className="pathogen-icon pathogen-safe" />;
+  };
+
+  // Download report as text file
+  const handleDownloadReport = () => {
+    if (!result?.report) return;
+    const blob = new Blob([result.report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `genomic_report_${result.genomic_id || 'unknown'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -210,14 +224,32 @@ function App() {
 
             {/* AI Report Section */}
             {result.report && (
-              <div className="ai-report-section">
-                <div className="report-header">
-                  <TrendingUp className="report-icon" />
-                  <h3 className="report-title">AI-Generated Surveillance Report</h3>
+              <div className="genomic-summary-card">
+                <h3 className="summary-title">Genomic Analysis Summary</h3>
+                <div className="summary-content">
+                  {result.report.split('\n').map((line, idx) => {
+                    // Format each line as a key-value pair if possible
+                    const match = line.match(/^\*\*(.+?)\*\*:\s*(.+)$/);
+                    if (match) {
+                      return (
+                        <div key={idx} className="summary-row">
+                          <span className="summary-label">{match[1]}:</span>
+                          <span className="summary-value">{match[2]}</span>
+                        </div>
+                      );
+                    }
+                    // Otherwise, show as a paragraph
+                    return <p key={idx} className="summary-text">{line}</p>;
+                  })}
                 </div>
-                <div className="report-content">
-                  <div className="report-text">{result.report}</div>
-                </div>
+                <button
+                  className="download-report-btn"
+                  onClick={handleDownloadReport}
+                  title="Download Report"
+                >
+                  <Download className="download-icon" />
+                  Download Report
+                </button>
               </div>
             )}
 
